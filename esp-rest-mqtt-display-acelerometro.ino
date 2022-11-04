@@ -457,13 +457,13 @@ void rest_dados_bruto(){
       display.clear();
       display.drawString(0, line, "Rest finalizado!!!");
       display.display();
-      delay(1000);
 }
 
 void loop() {
   if(millis()- time_to_action>10000){
     print_display();
     time_to_action = millis();
+    
   }
   //Send an HTTP POST request every 10 minutes
   //if ((millis() - lastTime) > timerDelay) {
