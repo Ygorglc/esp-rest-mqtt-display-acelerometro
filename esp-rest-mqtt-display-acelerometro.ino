@@ -1,15 +1,23 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <PubSubClient.h>
 //#include <ESP8266WebServer.h>
 //#include <ESP8266mDNS.h>
 //#include <ArduinoJson.h>
 #include <SPI.h>
-#include <Adafruit_SSD1306.h>
+#include <SSD1306.h>
+#include <ArduinoJson.h>
+//#include <Adafruit_SSD1306.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+
+// Pinos do display (comunicação i2c)
+const int DISPLAY_ADDRESS_PIN = 0x3c;
+const int DISPLAY_SDA_PIN = 4;
+const int DISPLAY_SCL_PIN = 15;
+const int DISPLAY_RST_PIN = 16;
 
 // MQTT Broker
 const char *mqtt_broker = "93.188.161.151";
@@ -19,7 +27,8 @@ const char *mqtt_password = "TESTE_1234";
 const int mqtt_port = 1883;
 
 #define OLED_RESET -1
-Adafruit_SSD1306 display(128, 32, &Wire);
+//Adafruit_SSD1306 display(128, 32, &Wire);
+SSD1306 display(DISPLAY_ADDRESS_PIN, DISPLAY_SDA_PIN, DISPLAY_SCL_PIN);
 #define OLED_address  0x3c 
 
 const char* ssid = "YGORR";
@@ -68,17 +77,24 @@ float tempo = 0;
 int posicao = 0;
 int idTeste = 2;
 
+
 void setup() {
 
   Wire.begin(2, 0);
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3c);  // initialize with the I2C addr 0x3D (for the 128x64)
-  display.clearDisplay();   // clears the screen and buffer 
+//  display.begin(SSD1306_SWITCHCAPVCC, 0x3c);  // initialize with the I2C addr 0x3D (for the 128x64)
+//  display.clearDisplay();   // clears the screen and buffer 
   Wire.begin(2, 0);
   
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  
+//  display.setTextSize(1);
+//  display.setTextColor(WHITE);
+//  display.setCursor(0,0);
+  if(!displayBegin())
+  {
+    // Se não deu certo, exibimos falha de display na serial
+    Serial.println("Display failed!");
+    // E deixamos em loop infinito
+    while(1);
+  }
   Serial.begin(115200);
   setup_wifi();
 
@@ -92,19 +108,40 @@ void setup() {
   
 }
 
+bool displayBegin()
+{
+  // Reiniciamos o display
+  pinMode(DISPLAY_RST_PIN, OUTPUT);
+  digitalWrite(DISPLAY_RST_PIN, LOW);
+  delay(1);
+  digitalWrite(DISPLAY_RST_PIN, HIGH);
+  delay(1);
+
+  return display.init(); 
+}
+
+// Função que faz algumas configuções no display
+void displayConfig()
+{
+  // Invertemos o display verticalmente
+  display.flipScreenVertically();
+  // Setamos a fonte
+  display.setFont(ArialMT_Plain_16);
+  // Alinhamos a fonta à esquerda
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+}
+
+
 void Accer_Gyro(){
+      int line = 0;
       unsigned long timexyz = millis();
       int i = 0;
       sensors_event_t a, g, temp;
 
       time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
   
-      display.clearDisplay();
-      display.print("Coletando Dados...");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Coletando Dados...");
       display.display();
       
       while(i!=800){ 
@@ -130,13 +167,9 @@ void Accer_Gyro(){
       //serializeJson(doc, buf);
 
       time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
   
-      display.clearDisplay();
-      display.print("Dados Coletados!");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Dados Coletados!");
       display.display();
       
 //      server.send(200, "application/json");
@@ -144,14 +177,11 @@ void Accer_Gyro(){
 }
 
 void setup_MQTT(){
+  int line = 0;
   time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
-  
-      display.clearDisplay();
-      display.print("Setup mqtt!!!");
-      display.println();
+
+      display.clear();
+      display.drawString(0, line, "Setup mqtt!!!");
       display.display();
       
   client.setServer(mqtt_broker, mqtt_port);
@@ -176,13 +206,8 @@ void setup_MQTT(){
   Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading.");
 
   time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
-  
-      display.clearDisplay();
-      display.print("Mqtt configurado!!!");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Mqtt configurado!!!");
       display.display();
 }
 
@@ -205,14 +230,11 @@ void callback(char *topic, byte *payload, unsigned int length) {
 }
 
 void setup_MPU6050(){
+  int line = 0;
   time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
   
-      display.clearDisplay();
-      display.print("Setup mpu6050!!!");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Setup mpu6050!!!");
       display.display();
       
   while (!Serial)
@@ -292,25 +314,18 @@ void setup_MPU6050(){
   delay(100);
   
   time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
-  
-      display.clearDisplay();
-      display.print("Configurado mpu6050!!!");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Configurado mpu6050!!!");
       display.display();
 }
 
 void setup_wifi(){
+  int line = 0;
    time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
+
   
-      display.clearDisplay();
-      display.print("Setup wi-fi!!!");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Setup wi-fi!!!");
       display.display();
       
 //  WiFi.config(ip, gateway, subnet);
@@ -336,46 +351,43 @@ void setup_wifi(){
 //    Serial.println("MDNS responder started");
 //  }
   time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
   
-      display.clearDisplay();
-      display.print("Configurado o wi-fi!!!");
-      display.println();
+      display.clear();
+      display.drawString(0, line, "Configurado o wi-fi!!!");
       display.display();
   
 }
 
 void print_display(){
-
+  int line = 0;
   time_to_action = millis();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  
-  display.clearDisplay();
-  display.print("IP: ");
-  display.println(WiFi.localIP());
-  display.print("Accer Range: ");
-  display.println(mpu.getAccelerometerRange());
-  display.print("Gyro Range: ");
-  display.println(mpu.getGyroRange());
-  display.print("Filter: ");
-  display.println(mpu.getFilterBandwidth());
+ 
+  display.drawString(0, line, "IP: ");
+  line++;
+  display.drawString(0, line, String(WiFi.localIP()));
+  line++;
+  display.drawString(0, line, "Accer Range: ");
+  line++;
+  display.drawString(0, line, String(mpu.getAccelerometerRange()));
+  line++;
+  display.drawString(0, line, "Gyro Range: ");
+  line++;
+  display.drawString(0, line, String(mpu.getGyroRange()));
+  line++;
+  display.drawString(0, line, "Filter: ");
+  line++;
+  display.drawString(0, line, String(mpu.getFilterBandwidth()));
   display.display();
 
 }
 
 void rest_dados_bruto(){
-  time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
+  int line = 0;
   
-      display.clearDisplay();
-      display.print("Rest chamado!!!");
-      display.println();
+  time_to_action = millis();
+
+      display.clear();
+      display.drawString(0, line, "Rest chamado!!!");
       display.display();
    HTTPClient http;
    int i = 0;
@@ -392,15 +404,11 @@ void rest_dados_bruto(){
 
       while(i!=800){ 
         time_to_action = millis();
-        display.setTextSize(1);
-        display.setTextColor(WHITE);
-        display.setCursor(0,0);
-    
-        display.clearDisplay();
-        display.print("Rest chamado posicao: ");
-        display.print(i);
-        display.println();
+     
+        display.clear();
+        display.drawString(0, line, "Rest chamado posicao: ");
         display.display();
+        
          //If you need an HTTP request with a content type: application/json, use the following:
           http.addHeader("Content-Type", "application/json");
           String httpRequestDataObjectJson = "{\"aceleracao_eixo_x\": \""+String(accer_x[i])+"\",";
@@ -429,13 +437,9 @@ void rest_dados_bruto(){
       // Free resources
       http.end(); 
       time_to_action = millis();
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
-  
-      display.clearDisplay();
-      display.print("Rest finalizado!!!");
-      display.println();
+   
+      display.clear();
+      display.drawString(0, line, "Rest finalizado!!!");
       display.display();
 }
 
