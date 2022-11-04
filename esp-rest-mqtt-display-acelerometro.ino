@@ -18,7 +18,7 @@ const int DISPLAY_ADDRESS_PIN = 0x3c;
 const int DISPLAY_SDA_PIN = 4;
 const int DISPLAY_SCL_PIN = 15;
 const int DISPLAY_RST_PIN = 16;
-
+const int fontHeight = 16; 
 // MQTT Broker
 const char *mqtt_broker = "93.188.161.151";
 const char *topic = "myTopic";
@@ -57,7 +57,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 //Your Domain name with URL path or IP address with path
-const char* serverName = "http://93.188.161.151:8085/defeito-motor-eletrico/v1/dados/dados-brutos";
+const char* serverName = "http://93.188.161.151:8085/defeito-motor-eletrico/v1/dados-gy87/dados-brutos";
 
 // the following variables are unsigned longs because the time, measured in
 // milliseconds, will quickly become a bigger number than can be stored in an int.
@@ -67,15 +67,19 @@ unsigned long lastTime = 0;
 // Set timer to 5 seconds (5000)
 unsigned long timerDelay = 5000;
 
-float aceleracao_eixo_x = 0; 
-float aceleracao_eixo_y = 0;
-float aceleracao_eixo_z = 0;
-float giro_eixo_x = 0;
-float giro_eixo_y = 0;
-float giro_eixo_z = 0;
-float tempo = 0;
-int posicao = 0;
-int idTeste = 2;
+float ax  = 0; 
+float ay  = 0;
+float az  = 0;
+float gx  = 0;
+float gy  = 0;
+float gz  = 0;
+float t   = 0;
+int   p   = 1;
+int   idt = 1;
+float mx  = 0;
+float my  = 0;
+float mz  = 0;
+float b   = 0;
 
 
 void setup() {
@@ -100,7 +104,7 @@ void setup() {
 
   setup_MQTT();
   
-  setup_MPU6050();
+  //setup_MPU6050();
 
   time_to_action = millis();
 
@@ -144,16 +148,22 @@ void Accer_Gyro(){
       display.drawString(0, line, "Coletando Dados...");
       display.display();
       
-      while(i!=800){ 
+      while(i!=10){ 
     
-        mpu.getEvent(&a, &g, &temp);
+//        mpu.getEvent(&a, &g, &temp);
 
-        accer_x[i] = a.acceleration.x;
-        accer_y[i] = a.acceleration.y;
-        accer_z[i] = a.acceleration.z;
-        gyro_x_array[i] = float(g.gyro.x);
-        gyro_y_array[i] = float(g.gyro.y);
-        gyro_z_array[i] = float(g.gyro.z);
+        accer_x[i] = 0;
+        accer_y[i] = 0;
+        accer_z[i] = 0;
+        gyro_x_array[i] = 0;
+        gyro_y_array[i] = 0;
+        gyro_z_array[i] = 0;
+//        accer_x[i] = a.acceleration.x;
+//        accer_y[i] = a.acceleration.y;
+//        accer_z[i] = a.acceleration.z;
+//        gyro_x_array[i] = float(g.gyro.x);
+//        gyro_y_array[i] = float(g.gyro.y);
+//        gyro_z_array[i] = float(g.gyro.z);
         time_xyz_array[i] = millis()-timexyz;
         
         i++;
@@ -361,22 +371,23 @@ void setup_wifi(){
 void print_display(){
   int line = 0;
   time_to_action = millis();
- 
+  display.clear();
   display.drawString(0, line, "IP: ");
   line++;
-  display.drawString(0, line, String(WiFi.localIP()));
-  line++;
-  display.drawString(0, line, "Accer Range: ");
-  line++;
-  display.drawString(0, line, String(mpu.getAccelerometerRange()));
-  line++;
-  display.drawString(0, line, "Gyro Range: ");
-  line++;
-  display.drawString(0, line, String(mpu.getGyroRange()));
-  line++;
-  display.drawString(0, line, "Filter: ");
-  line++;
-  display.drawString(0, line, String(mpu.getFilterBandwidth()));
+  String ip = WiFi.localIP().toString();
+  display.drawString(0, line * fontHeight, ip);
+//  line++;
+//  display.drawString(0, line, "Accer Range: ");
+//  line++;
+//  display.drawString(0, line, String(mpu.getAccelerometerRange()));
+//  line++;
+//  display.drawString(0, line, "Gyro Range: ");
+//  line++;
+//  display.drawString(0, line, String(mpu.getGyroRange()));
+//  line++;
+//  display.drawString(0, line, "Filter: ");
+//  line++;
+//  display.drawString(0, line, String(mpu.getFilterBandwidth()));
   display.display();
 
 }
@@ -402,24 +413,29 @@ void rest_dados_bruto(){
 //      // Send HTTP POST request
 //      int httpResponseCode = http.POST(httpRequestData);
 
-      while(i!=800){ 
+      while(i!=10){ 
         time_to_action = millis();
      
         display.clear();
         display.drawString(0, line, "Rest chamado posicao: ");
+        display.drawString(0, (line+1) * fontHeight , String(i+1));
         display.display();
         
          //If you need an HTTP request with a content type: application/json, use the following:
           http.addHeader("Content-Type", "application/json");
-          String httpRequestDataObjectJson = "{\"aceleracao_eixo_x\": \""+String(accer_x[i])+"\",";
-                 httpRequestDataObjectJson +="\"aceleracao_eixo_y\": \""+String(accer_y[i])+"\",";
-                 httpRequestDataObjectJson += "\"aceleracao_eixo_z\": \""+String(accer_z[i])+"\",";
-                 httpRequestDataObjectJson += "\"giro_eixo_x\": \""+String(gyro_x_array[i])+"\",";
-                 httpRequestDataObjectJson += "\"giro_eixo_y\": \""+String(gyro_y_array[i])+"\",";
-                 httpRequestDataObjectJson += "\"giro_eixo_z\": \""+String(gyro_z_array[i])+"\",";
-                 httpRequestDataObjectJson += "\"tempo\": \""+String(time_xyz_array[i])+"\",";
-                 httpRequestDataObjectJson += "\"posicao\": \""+String((i+1))+"\",";
-                 httpRequestDataObjectJson += "\"idTeste\": \""+String(idTeste)+"\"}";
+          String httpRequestDataObjectJson = "{\"ax\": \""+String(ax)+"\",";
+             httpRequestDataObjectJson += "\"ay\": \""+String(ay)+"\",";
+             httpRequestDataObjectJson += "\"az\": \""+String(az)+"\",";
+             httpRequestDataObjectJson += "\"gx\": \""+String(gx)+"\",";
+             httpRequestDataObjectJson += "\"gy\": \""+String(gy)+"\",";
+             httpRequestDataObjectJson += "\"gz\": \""+String(gz)+"\",";
+             httpRequestDataObjectJson += "\"t\": \""+String(t)+"\",";
+             httpRequestDataObjectJson += "\"p\": \""+String(p)+"\",";
+             httpRequestDataObjectJson += "\"idt\": \""+String(idt)+"\",";
+             httpRequestDataObjectJson += "\"mx\": \""+String(mx)+"\",";
+             httpRequestDataObjectJson += "\"my\": \""+String(my)+"\",";
+             httpRequestDataObjectJson += "\"mz\": \""+String(mz)+"\",";
+             httpRequestDataObjectJson += "\"b\": \""+String(b)+"\"}";
                                             
           //String httpRequestDataObjectJson = "{\"descricao\":\"teste-esp8266-rest-post\"}";
           int httpResponseCode = http.POST(httpRequestDataObjectJson);
@@ -441,6 +457,7 @@ void rest_dados_bruto(){
       display.clear();
       display.drawString(0, line, "Rest finalizado!!!");
       display.display();
+      delay(1000);
 }
 
 void loop() {
